@@ -32,3 +32,25 @@ int main() {
 2
 4
 ```
+
+2. Capturing Results:
+```C++
+int main() {
+
+    std::array arr = { 5, 10, 15, 20, 25, 30 };
+    std::vector vec = { 0, 3, 1, 4, 2, 5 };
+    
+    auto v2 = from(vec)
+        .map<int>([&] (auto &&item) {
+            return arr[item];
+        })
+        .to_vector();
+        
+    std::cout << from(v2).join_to_string();
+    
+}
+```
+
+```
+5, 20, 10, 25, 15, 30
+```
