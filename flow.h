@@ -49,8 +49,10 @@ public:
     // -- For Each Loops
 
     void for_each(std::function<void(_T)> const &fn) const {
+
         auto it = *this;
         while (auto &&item = it()) fn(item.value());
+
     }
 
 
@@ -90,7 +92,6 @@ public:
 
 
     // -- Flow Mapping
-
 
     template<typename _M, typename _ = _T, std::enable_if_t<std::is_class_v<_>, int> = 0>
     flow<_M> map(_M _::*member) const {
@@ -133,7 +134,7 @@ public:
 
 
     template<typename _T1>
-    flow<_T1> map_to() const {
+    flow<_T1> map() const {
 
         auto it = *this;
 
@@ -146,6 +147,13 @@ public:
 
 
     // -- Constraints
+
+    _T first() const {
+
+        return (*this)().value();
+
+    }
+
 
     flow<_T> take(size_t count) const {
 
@@ -173,9 +181,23 @@ public:
     }
 
 
-    // -- Attachments
+    flow<_T> slice(size_t first, size_t last) const {
 
-    flow<_T> then(flow<_T> const &other) const {
+        return skip(first).take(last - first);
+
+    }
+
+
+    _T at(size_t index) const {
+
+        return skip(index).first();
+
+    }
+
+
+    // -- Flow manipulation
+
+    flow<_T> join(flow<_T> const &other) const {
 
         auto it0 = *this;
         auto it1 = other;
@@ -206,57 +228,108 @@ public:
     }
 
 
+    flow<_T> repeat() const {
+
+        auto it = *this;
+
+        return [=]() mutable -> std::optional<_T> {
+            for (;;) {
+                if (auto &&item = it())
+                    return item;
+                it = *this;
+            }
+        };
+
+    }
+
+
+    flow<_T> repeat(size_t times) const {
+
+        auto it = *this;
+        size_t counter = 1;
+
+        return [=]() mutable -> std::optional<_T> {
+            for (;;) {
+                if (auto &&item = it())
+                    return item;
+                if (counter++ < times)
+                    it = *this;
+                else
+                    return std::nullopt;
+            }
+        };
+
+    }
+
+
     // -- Utilities
 
     size_t count() const {
+
+        size_t result = 0;
+
         auto it = *this;
-        size_t counter = 0;
-        while (it()) ++counter;
-        return counter;
+        while (it()) ++result;
+
+        return result;
+
     }
 
     bool any(std::function<bool(_T)> const &pred) const {
+
         auto it = *this;
-        while (auto &&item = it())
-            if (pred(item.value())) return true;
+        while (auto &&item = it()) if (pred(item.value())) return true;
         return false;
+
     }
 
     bool all(std::function<bool(_T)> const &pred) const {
+
         auto it = *this;
-        while (auto &&item = it())
-            if (!pred(item.value())) return false;
+        while (auto &&item = it()) if (!pred(item.value())) return false;
         return true;
+
     }
 
 
     // -- Container generation
 
-    using _TV = std::remove_cv_t<std::remove_reference_t<_T>>;
+    template<typename _ = _T, std::enable_if_t<std::is_object_v<_>, int> = 0>
+    std::vector<_> to_vector() const {
 
+        std::vector<_> result;
 
-    std::vector<_TV> to_vector() const {
-        std::vector<_TV> result;
         auto it = *this;
         while (auto &&item = it()) result.push_back(item.value());
+
         return result;
+
     }
 
 
-    std::set<_TV> to_set() const {
-        std::set<_TV> result;
+    template<typename _ = _T, std::enable_if_t<std::is_object_v<_>, int> = 0>
+    std::set<_> to_set() const {
+
+        std::set<_> result;
+
         auto it = *this;
         while (auto &&item = it()) result.insert(item.value());
+
         return result;
+
     }
 
 
     std::string join_to_string(char const *sep = ", ") const {
+
         std::stringstream ss;
+
         auto it = *this;
         if (auto &&item = it()) ss << item.value();
         while (auto &&item = it()) ss << sep << item.value();
+
         return ss.str();
+
     }
 
 };
@@ -284,6 +357,28 @@ flow<size_t> range(size_t first, size_t last) {
     return [=]() mutable -> std::optional<size_t> {
         if (ctr > last) return std::nullopt;
         return ctr++;
+    };
+
+}
+
+// Represents all the primes. Requires flow constrants
+flow<size_t> primes() {
+
+    size_t i = 1;
+
+    return [=]() mutable -> std::optional<size_t> {
+
+        for (;;) {
+
+            i += 2;
+
+            for (auto j = (i / 2) | 1;; j -= 2) {
+                if (j == 1) return i;
+                if (i % j == 0) break;
+            }
+
+        }
+
     };
 
 }
